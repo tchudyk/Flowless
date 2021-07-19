@@ -6,7 +6,7 @@
 
     <groupId>org.fxmisc.flowless</groupId>
     <artifactId>flowless</artifactId>
-    <version>0.6.4-TC</version>
+    <version>0.6.4-TC1</version>
 
     <build>
         <plugins>
