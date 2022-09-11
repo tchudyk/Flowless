@@ -1,5 +1,50 @@
 # Change Log
 
+## [v0.6.10](https://github.com/FXMisc/Flowless/tree/v0.6.9) (2022-06-13)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.9...v0.6.10)
+
+- Fix Virtualized height NPE [\#107](https://github.com/FXMisc/Flowless/pull/107)
+- Fix first cell rendering [\#109](https://github.com/FXMisc/Flowless/pull/109)
+
+## [v0.6.9](https://github.com/FXMisc/Flowless/tree/v0.6.9) (2022-02-24)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.8...v0.6.9)
+
+- Fix thin lines between cells [\#105](https://github.com/FXMisc/Flowless/pull/105)
+- Fix thin lines between cells 2 [\#105](https://github.com/FXMisc/Flowless/pull/106)
+
+## [v0.6.8](https://github.com/FXMisc/Flowless/tree/v0.6.8) (2022-01-27)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.7...v0.6.8)
+
+- Corrected swapped X & Y snapsize methods [\#103](https://github.com/FXMisc/Flowless/issues/103)
+- Added auto module to jar manifest
+
+## [v0.6.7](https://github.com/FXMisc/Flowless/tree/v0.6.7) (2021-10-19)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.6...v0.6.7)
+
+**Fixed issues:**
+
+- Horizontal Scroll Bar does not work correctly [\#1030](https://github.com/FXMisc/RichtextFX/issues/1030)  ([appsofteng](https://github.com/appsofteng))
+
+## [v0.6.6](https://github.com/FXMisc/Flowless/tree/v0.6.6) (2021-09-10)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.5...v0.6.6)
+
+**Fixed issues:**
+
+- JavaFX 17 breaks scrollbar behaviours in VirtualizedScrollPane [\#97](https://github.com/FXMisc/Flowless/issues/97)
+
+**Merged pull requests:**
+
+- Replaced bindBidirectional calls by a pair of ChangeListener to bind scrollbar coordinates and content position [\#98](https://github.com/FXMisc/Flowless/pull/98) ([FredericThevenet](https://github.com/fthevenet))
+- Clean-up scrollbar position listeners on dispose [\#99](https://github.com/FXMisc/Flowless/pull/99) ([FredericThevenet](https://github.com/fthevenet))
+
+## [v0.6.5](https://github.com/FXMisc/Flowless/tree/v0.6.5) (2021-07-28)
+[Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.4...v0.6.5)
+
+**Merged pull requests:**
+
+- Crop cells only if memorizedRange is bigger than expected range [\#94](https://github.com/FXMisc/Flowless/pull/94) ([TomaszChudyk](https://github.com/tchudyk))
+- Gradle 7.0.2 upgrade [\#95](https://github.com/FXMisc/Flowless/pull/95)
+
 ## [v0.6.4](https://github.com/FXMisc/Flowless/tree/v0.6.4) (2021-07-08)
 [Full Changelog](https://github.com/FXMisc/Flowless/compare/v0.6.3...v0.6.4)
 

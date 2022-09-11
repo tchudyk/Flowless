@@ -6,13 +6,12 @@ import javafx.application.Platform;
 import javafx.beans.DefaultProperty;
 import javafx.beans.NamedArg;
 import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.css.PseudoClass;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Node;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Region;
@@ -21,7 +20,7 @@ import org.reactfx.value.Val;
 import org.reactfx.value.Var;
 
 @DefaultProperty("content")
-public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region implements Virtualized {
+public class VirtualizedScrollPane<V extends Region & Virtualized> extends Region implements Virtualized {
 
     private static final PseudoClass CONTENT_FOCUSED = PseudoClass.getPseudoClass("content-focused");
 
@@ -29,9 +28,15 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
     private final ScrollBar vbar;
     private final V content;
     private final ChangeListener<Boolean> contentFocusedListener;
+    private final ChangeListener<Double> hbarValueListener;
+    private ChangeListener<Double> hPosEstimateListener;
+    private final ChangeListener<Double> vbarValueListener;
+    private final ChangeListener<Double> vPosEstimateListener;
 
     private Var<Double> hbarValue;
     private Var<Double> vbarValue;
+    private Var<Double> hPosEstimate;
+    private Var<Double> vPosEstimate;
 
     /** The Policy for the Horizontal ScrollBar */
     private final Var<ScrollPane.ScrollBarPolicy> hbarPolicy;
@@ -75,25 +80,45 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
         vbar.blockIncrementProperty().bind(vbar.visibleAmountProperty());
 
         // scrollbar positions
-        Var<Double> hPosEstimate = Val
-                .combine(
+        hPosEstimate = Val.combine(
                     content.estimatedScrollXProperty(),
                     Val.map(content.layoutBoundsProperty(), Bounds::getWidth),
+                    Val.map(content.paddingProperty(), p -> p.getLeft() + p.getRight()),
                     content.totalWidthEstimateProperty(),
                     VirtualizedScrollPane::offsetToScrollbarPosition)
                 .asVar(this::setHPosition);
-        Var<Double> vPosEstimate = Val
-                .combine(
+       vPosEstimate = Val.combine(
                     content.estimatedScrollYProperty(),
                     Val.map(content.layoutBoundsProperty(), Bounds::getHeight),
+                    Val.map(content.paddingProperty(), p -> p.getTop() + p.getBottom()),
                     content.totalHeightEstimateProperty(),
                     VirtualizedScrollPane::offsetToScrollbarPosition)
                 .orElseConst(0.0)
                 .asVar(this::setVPosition);
         hbarValue = Var.doubleVar(hbar.valueProperty());
         vbarValue = Var.doubleVar(vbar.valueProperty());
-        Bindings.bindBidirectional(hbarValue, hPosEstimate);
-        Bindings.bindBidirectional(vbarValue, vPosEstimate);
+        // The use of a pair of mirrored ChangeListener instead of a more natural bidirectional binding
+        // here is a workaround following a change in JavaFX [1] which broke the behaviour of the scroll bar [2].
+        // [1] https://bugs.openjdk.java.net/browse/JDK-8264770
+        // [2] https://github.com/FXMisc/Flowless/issues/97
+        hbarValueListener = (observable, oldValue, newValue) -> {
+        	// Fix for update anomaly reported here https://github.com/FXMisc/RichTextFX/issues/1030
+            hPosEstimate.removeListener(hPosEstimateListener);
+            hPosEstimate.setValue(newValue);
+            hPosEstimate.addListener(hPosEstimateListener);
+        };
+        hbarValue.addListener(hbarValueListener);
+        hPosEstimateListener = (observable, oldValue, newValue) -> {
+        	// Fix for update anomaly reported here https://github.com/FXMisc/RichTextFX/issues/1030
+            hbarValue.removeListener(hbarValueListener);
+            hbarValue.setValue(newValue);
+            hbarValue.addListener(hbarValueListener);
+        };
+        hPosEstimate.addListener(hPosEstimateListener);
+        vbarValueListener = (observable, oldValue, newValue) -> vPosEstimate.setValue(newValue);
+        vbarValue.addListener(vbarValueListener);
+        vPosEstimateListener = (observable, oldValue, newValue) -> vbarValue.setValue(newValue);
+        vPosEstimate.addListener(vPosEstimateListener);
 
         // scrollbar visibility
         hbarPolicy = Var.newSimpleVar(hPolicy);
@@ -184,8 +209,10 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
 
     private void dispose() {
         content.focusedProperty().removeListener(contentFocusedListener);
-        hbarValue.unbindBidirectional(content.estimatedScrollXProperty());
-        vbarValue.unbindBidirectional(content.estimatedScrollYProperty());
+        hbarValue.removeListener(hbarValueListener);
+        hPosEstimate.removeListener(hPosEstimateListener);
+        vbarValue.removeListener(vbarValueListener);
+        vPosEstimate.removeListener(vPosEstimateListener);
         unbindScrollBar(hbar);
         unbindScrollBar(vbar);
     }
@@ -269,12 +296,12 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
 
     @Override
     protected void layoutChildren() {
-        double layoutWidth = snapSize(getLayoutBounds().getWidth());
-        double layoutHeight = snapSize(getLayoutBounds().getHeight());
+        double layoutWidth = snapSizeX(getLayoutBounds().getWidth());
+        double layoutHeight = snapSizeY(getLayoutBounds().getHeight());
         boolean vbarVisible = vbar.isVisible();
         boolean hbarVisible = hbar.isVisible();
-        double vbarWidth = snapSize(vbarVisible ? vbar.prefWidth(-1) : 0);
-        double hbarHeight = snapSize(hbarVisible ? hbar.prefHeight(-1) : 0);
+        double vbarWidth = snapSizeX(vbarVisible ? vbar.prefWidth(-1) : 0);
+        double hbarHeight = snapSizeY(hbarVisible ? hbar.prefHeight(-1) : 0);
 
         double w = layoutWidth - vbarWidth;
         double h = layoutHeight - hbarHeight;
@@ -294,19 +321,25 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
     }
 
     private void setHPosition(double pos) {
+        Insets padding = content.getPadding();
         double offset = scrollbarPositionToOffset(
                 pos,
                 content.getLayoutBounds().getWidth(),
+                padding.getLeft() + padding.getRight(),
                 content.totalWidthEstimateProperty().getValue());
-        content.estimatedScrollXProperty().setValue(offset);
+        content.estimatedScrollXProperty().setValue((double) Math.round(offset));
     }
 
     private void setVPosition(double pos) {
+        Insets padding = content.getPadding();
         double offset = scrollbarPositionToOffset(
                 pos,
                 content.getLayoutBounds().getHeight(),
+                padding.getTop() + padding.getBottom(),
                 content.totalHeightEstimateProperty().getValue());
-        content.estimatedScrollYProperty().setValue(offset);
+        // offset needs rounding otherwise thin lines appear between cells,
+        // usually only visible when cells have dark backgrounds/borders.
+        content.estimatedScrollYProperty().setValue((double) Math.round(offset));
     }
 
     private static void setupUnitIncrement(ScrollBar bar) {
@@ -325,16 +358,16 @@ public class VirtualizedScrollPane<V extends Node & Virtualized> extends Region 
     }
 
     private static double offsetToScrollbarPosition(
-            double contentOffset, double viewportSize, double contentSize) {
+            double contentOffset, double viewportSize, double padding, double contentSize) {
         return contentSize > viewportSize
-                ? contentOffset / (contentSize - viewportSize) * contentSize
+                ? contentOffset / (contentSize - viewportSize + padding) * contentSize
                 : 0;
     }
 
     private static double scrollbarPositionToOffset(
-            double scrollbarPos, double viewportSize, double contentSize) {
+            double scrollbarPos, double viewportSize, double padding, double contentSize) {
         return contentSize > viewportSize
-                ? scrollbarPos / contentSize * (contentSize - viewportSize)
+                ? scrollbarPos / contentSize * (contentSize - viewportSize + padding)
                 : 0;
     }
 }
